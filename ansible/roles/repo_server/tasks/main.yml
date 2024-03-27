@@ -1,0 +1,243 @@
+---
+
+- name: Update and upgrade apt packages
+  become: true
+  apt:
+    upgrade: yes
+    update_cache: yes
+
+- name: Reboot
+  reboot:
+    msg: Rebooting vm.
+
+- name: Install required packages
+  apt:
+    pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - software-properties-common
+
+- name: Create directory for Docker's GPG key
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Add Docker's official GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    keyring: /etc/apt/keyrings/docker.gpg
+    state: present
+
+- name: Print architecture variables
+  ansible.builtin.debug:
+    msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}"
+
+- name: Add Docker repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch={{ arch_mapping[ansible_architecture] | default(ansible_architecture) }}
+      signed-by=/etc/apt/keyrings/docker.gpg]
+      https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
+    filename: docker
+    state: present
+
+- name: Install Docker and related packages
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  loop:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+    - docker-buildx-plugin
+    - docker-compose-plugin
+    - docker-compose
+
+- name: Add Docker group
+  group:
+    name: docker
+    state: present
+
+- name: Add user to Docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+
+- name: Enable and start Docker services
+  systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - docker.service
+    - containerd.service
+
+- name: Change acces for /data
+  file:
+    path: /data
+    state: directory
+    mode: '777'
+
+- name: Create docker-composee file
+  shell: |
+        cat <<EOF > docker-compose.yaml
+        version: "3.7"
+
+        services:
+          nexus:
+            image: sonatype/nexus3
+            expose: 
+              - 8081
+              - 8082
+              - 8083
+            ports:
+              - "8081:8081"
+              - "8082:8082"
+              - "8083:8083"
+            volumes:
+              - /data:/nexus-data
+            restart: always
+        EOF
+
+- name: Start Nexus.
+  command: docker-compose up -d
+
+- name: Wait for admin.password to be created
+  wait_for:
+    path: /data/admin.password
+    state: present
+    timeout: 300 
+
+- name: Get initial admin password.
+  command: cat /data/admin.password
+  register: adminpass
+
+- name: Print response
+  debug:
+    msg: "{{ adminpass.stdout }}"
+
+- name: Wait a bit..
+  pause: 
+    seconds: 30
+
+- name: Change admin password
+  shell: > 
+    curl -v -u {{ adminuser.username }}:{{ adminpass.stdout }}
+    -XPUT
+    -H 'Content-Type: text/plain'
+    -d '{{ adminuser.password }}'
+    'http://localhost:8081/service/rest/v1/security/users/admin/change-password'
+  register: response
+
+- name: Print response
+  debug:
+    msg: "{{ response.stdout }}"
+
+- name: Wait for admin.password to be deleted
+  wait_for:
+    path: /data/admin.password
+    state: absent
+    timeout: 300 
+
+- name: Update anonymous access settings
+  shell: > 
+    curl -v -u {{ adminuser.username }}:{{ adminuser.password }}
+    -XPUT
+    -H 'Content-Type: application/json'
+    -d 
+    '{
+        "enabled": true,
+        "userId": "anonymous",
+        "realmName": "NexusAuthorizingRealm"
+    }'
+    'http://localhost:8081/service/rest/v1/security/anonymous'
+  register: response
+
+- name: Print response
+  debug:
+    msg: "{{ response.stdout }}"
+
+- name: Create configuration user
+  shell: > 
+    curl -v -u {{ adminuser.username }}:{{ adminuser.password }}
+    -H 'Content-Type: application/json; charset=UTF-8'
+    -d 
+    '{
+      "userId": "{{ login.username }}",
+      "firstName": "{{ login.username }}",
+      "lastName": "{{ login.username }}",
+      "emailAddress": "{{ login.username }}@mail.com",
+      "password": "{{ login.password }}",
+      "status": "active",
+      "roles": [
+        "nx-admin"
+      ]
+    }'
+    'http://localhost:8081/service/rest/v1/security/users'
+  register: response
+
+- name: Print response
+  debug:
+    msg: "{{ response.stdout }}"
+
+- name: Add docker bearer token to active realms
+  shell: > 
+    curl -s -u {{ login.username }}:{{ login.password }}
+    -XPUT
+    -H 'Content-Type: application/json'
+    -d '["NexusAuthenticatingRealm","DockerToken"]'
+    'http://localhost:8081/service/rest/v1/security/realms/active'
+  register: response
+
+- name: Print response
+  debug:
+    msg: "{{ response.stdout }}"
+
+- name: Create blobstores
+  shell: > 
+    curl -s -u {{ login.username }}:{{ login.password }}
+    -H 'Content-Type: application/json'
+    -d '{{ lookup("template", "blobstore_body.json.j2") | to_json }}'
+    '{{ blobstore.url }}'
+  loop: "{{ blobstore.list }}"
+
+- name: Create Docker proxy
+  shell: > 
+    curl -s -u {{ login.username }}:{{ login.password }}
+    -H 'Content-Type: application/json'
+    -d '{{ lookup("template", "docker_proxy_body.json.j2") | to_json }}'
+    '{{ docker_proxy.url }}'
+  register: response
+
+- name: Print response
+  debug:
+    msg: "{{ response.stdout }}"
+
+- name: Create Docker hosted repo
+  shell: > 
+    curl -s -u {{ login.username }}:{{ login.password }}
+    -H 'Content-Type: application/json'
+    -d '{{ lookup("template", "docker_hosted_body.json.j2") | to_json }}'
+    '{{ docker_hosted.url }}'
+  register: response
+
+- name: Print response
+  debug:
+    msg: "{{ response.stdout }}"
+
+- name: Create helm hosted repo
+  shell: > 
+    curl -s -u {{ login.username }}:{{ login.password }}
+    -H 'Content-Type: application/json'
+    -d '{{ lookup("template", "helm_hosted_body.json.j2") | to_json }}'
+    '{{ helm_hosted.url }}'
+  register: response
+
+- name: Print response
+  debug:
+    msg: "{{ response.stdout }}"

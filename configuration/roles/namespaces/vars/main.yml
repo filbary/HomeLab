@@ -1,0 +1,3 @@
+namespaces:
+  - name: dev
+  - name: prod

@@ -1,0 +1,11 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: developer
+rules:
+- apiGroups: ["", "batch"]
+  resources: ["pods", "configmaps", "jobs", "cronjobs"]
+  verbs: ["get", "watch", "list", "update", "delete"]
+- apiGroups: [""]
+  resources: ["secrets, namespaces"]
+  verbs: ["get", "watch", "list"]

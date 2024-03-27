@@ -1,0 +1,40 @@
+{
+    "name": "{{ docker_proxy.name }}",
+    "online": true,
+    "storage": {
+        "blobStoreName": "{{ docker_proxy.blobstore }}",
+        "strictContentTypeValidation": true
+    },
+    "cleanup": {
+        "policyNames": []
+    },
+    "proxy": {
+        "remoteUrl": "https://registry-1.docker.io",
+        "contentMaxAge": 1440,
+        "metadataMaxAge": 1440
+    },
+    "negativeCache": {
+        "enabled": true,
+        "timeToLive": 1440
+    },
+    "httpClient": {
+        "blocked": false,
+        "autoBlock": true,
+        "connection": {
+        "useTrustStore": false
+        }
+    },
+    "replication": {
+        "preemptivePullEnabled": false
+    },
+    "docker": {
+        "v1Enabled": true,
+        "forceBasicAuth": false,
+        "httpPort": {{ docker_proxy.port }}
+    },
+    "dockerProxy": {
+        "indexType": "HUB",
+        "cacheForeignLayers": false,
+        "useTrustStoreForIndexAccess": false
+    }
+}

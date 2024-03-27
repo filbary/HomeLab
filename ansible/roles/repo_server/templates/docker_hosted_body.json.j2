@@ -1,0 +1,21 @@
+{
+    "name": "{{ docker_hosted.name }}",
+    "online": true,
+    "storage": {
+        "blobStoreName": "{{ docker_hosted.blobstore }}",
+        "strictContentTypeValidation": true,
+        "writePolicy": "ALLOW",
+        "latestPolicy": false
+    },
+    "cleanup": {
+        "policyNames": []
+    },
+    "component": {
+        "proprietaryComponents": false
+    },
+    "docker": {
+        "v1Enabled": false,
+        "forceBasicAuth": true,
+        "httpPort": {{ docker_hosted.port }}
+    }
+}

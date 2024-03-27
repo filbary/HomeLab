@@ -1,0 +1,27 @@
+---
+
+- hosts: repository
+  become: true
+  roles:
+    - repo_server
+
+# - hosts: nfs
+#   become: true
+#   roles:
+#     - nfs_server
+
+# - hosts: workers, masters
+#   become: true
+#   roles:
+#     - vm_users
+#     - k8s_cluster
+
+# - hosts: masters
+#   become: true
+#   roles:
+#     - masters
+
+# - hosts: workers
+#   become: true
+#   roles:
+#     - workers

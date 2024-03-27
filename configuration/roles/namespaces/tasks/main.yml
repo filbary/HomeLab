@@ -1,0 +1,11 @@
+
+- name: Set Context
+  command: kubectl config use-context myadmin@kubernetes
+
+- name: Create a k8s namespaces
+  command: kubectl create namespace "{{ item.name }}"
+  loop: "{{ namespaces }}"
+  register: kubectl_output
+  failed_when: 
+    - "'AlreadyExists' not in kubectl_output.stderr and kubectl_output.rc != 0"
+  ignore_errors: true

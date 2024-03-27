@@ -1,0 +1,16 @@
+- name: Add external-provisioner chart repo
+  kubernetes.core.helm_repository:
+    name: stable
+    repo_url: "https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner"
+
+- name: Deploy latest version of NFS provisioner chart
+  kubernetes.core.helm:
+    name: nfs-provisioner
+    chart_ref: nfs-subdir-external-provisioner/nfs-subdir-external-provisioner
+    release_namespace: nfs-provisioner
+    create_namespace: true
+    values:
+      nfs:
+        server: "{{ nfs_ip }}"
+        path: /data
+

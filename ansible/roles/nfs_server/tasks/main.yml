@@ -1,0 +1,40 @@
+---
+
+- name: Update and upgrade apt packages
+  become: true
+  apt:
+    upgrade: yes
+    update_cache: yes
+
+- name: Reboot
+  reboot:
+    msg: Rebooting vm.
+
+- name: Install nfs-kernel-server
+  apt:
+    name: nfs-kernel-server
+    state: present
+
+- name: Create directory data if it does not exist
+  become: true
+  file:
+    path: /data
+    state: directory
+    mode: '777'
+
+- name: Change ownership of /data
+  become: true
+  command: sudo chown -R nobody:nogroup /data
+
+- name: Grant access to nfs
+  shell: |
+        cat <<EOF >> /etc/exports
+        /data {{ item }}(rw,no_subtree_check,no_root_squash)
+        EOF
+  loop: "{{ request_access_ips }}"
+
+- name: Enable and start nfs-server service
+  command: systemctl enable --now nfs-server
+
+- name: Update export table
+  command: exportfs -ar

@@ -1,0 +1,15 @@
+{
+    "name": "{{ helm_hosted.name }}",
+    "online": true,
+    "storage": {
+        "blobStoreName": "{{ helm_hosted.blobstore }}",
+        "strictContentTypeValidation": true,
+        "writePolicy": "allow_once"
+    },
+    "cleanup": {
+        "policyNames": []
+    },
+    "component": {
+        "proprietaryComponents": false
+    }
+}

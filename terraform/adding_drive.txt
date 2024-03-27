@@ -1,0 +1,8 @@
+mkdir /data
+mkfs.ext4 /dev/vdb
+
+Add this line to file: /etc/fstab in order to permanently mount the drive
+/dev/vdb /data ext4 defaults 0 0
+
+then make: mount -a 
+and reboot

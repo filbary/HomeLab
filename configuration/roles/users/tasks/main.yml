@@ -1,0 +1,53 @@
+- name: "Set target_user based on operation_on_user"
+  set_fact:
+    target_user: "{{ users | selectattr('name', 'equalto', operation_on_user) | list | first }}"
+
+- name: Create temp dir
+  file:
+    path: tmp/user
+    state: directory
+
+- name: Generate certs and signing requests
+  shell: |
+        cd tmp/user
+        openssl genrsa -out {{ target_user.name }}.pem
+        openssl req -new -key {{ target_user.name }}.pem -out {{ target_user.name }}.csr -subj "/CN={{ target_user.name }}"
+
+- name: Get csr base64 encoded
+  command: base64 -w 0 tmp/user/{{ operation_on_user }}.csr
+  register: csr_encoded
+
+- name: Create csr file
+  template:
+    src: templates/csr.yaml.j2
+    dest: tmp/user/{{ operation_on_user }}-csr.yaml
+
+- name: Upload csr
+  command: kubectl apply -f tmp/user/{{ operation_on_user }}-csr.yaml
+
+- name: Approve certificate
+  command: kubectl certificate approve {{ operation_on_user }}
+
+- name: Get client certificate data
+  command: kubectl get csr {{ operation_on_user }} -o jsonpath='{.status.certificate}'
+  register: crt_data_encoded
+
+- name: Encode the client key data
+  shell: base64 -w0 < tmp/user/{{ operation_on_user }}.pem
+  register: key_data_encoded
+
+- name: Prepeare rolebinding files
+  template:
+    src: templates/role-binding.yaml.j2
+    dest: tmp/user/{{ operation_on_user }}-{{ item.name }}-rb.yaml
+  loop: "{{ target_user.ns }}"
+
+- name: Deploy role bindings
+  command: kubectl apply -f tmp/user/{{ operation_on_user }}-{{ item.name }}-rb.yaml
+  loop: "{{ target_user.ns }}"
+
+- name: Print client-certificate-data and client-key-data
+  debug:
+    msg:
+        - client-certificate-data: "{{ crt_data_encoded.stdout | trim }}"
+        - client-key-data: "{{ key_data_encoded.stdout | trim }}"

@@ -1,0 +1,20 @@
+operation_on_user: third-user
+users:
+  - name: first-user
+    ns:
+    - name: dev
+      role: developer
+    - name: prod
+      role: developer
+  - name: second-user
+    ns:
+    - name: dev
+      role: developer
+    - name: prod
+      role: developer
+  - name: third-user
+    ns:
+    - name: dev
+      role: developer
+    - name: prod
+      role: developer

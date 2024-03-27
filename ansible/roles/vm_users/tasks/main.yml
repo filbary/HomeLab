@@ -1,0 +1,20 @@
+---
+
+- name: Reboot for upgrade
+  reboot:
+    msg: Rebooting vm.
+
+- name: create the kube user account
+  user: name=kube append=yes state=present createhome=yes shell=/bin/bash
+
+- name: allow 'kube' to use sudo without needing a password
+  lineinfile:
+    dest: /etc/sudoers
+    line: 'kube ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+
+- name: set up authorized keys for the kube user
+  authorized_key:
+    user: kube
+    state: present
+    key: "{{ public_authorized_key }}"

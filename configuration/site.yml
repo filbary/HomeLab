@@ -1,0 +1,14 @@
+# ---
+
+- hosts: localhost
+  connection: local
+  roles:
+    # - namespaces
+    # - roles
+    # - users
+    - storage_class
+
+# - hosts: localhost
+#   connection: local
+#   roles:
+#     - keycloak

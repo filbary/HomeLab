@@ -1,0 +1,30 @@
+- name: Create tmp dir
+  file:
+    path: tmp
+    state: directory
+
+- name: Prepeare developer cluster role file
+  template:
+    src: templates/developer-cr.yml.j2
+    dest: tmp/developer-cr.yml
+
+- name: Prepeare secret reader file
+  template: 
+    src: templates/secret-reader-cr.yml.j2
+    dest: tmp/secret-reader-cr.yml
+
+- name: Get list of yml files
+  find:
+    paths: tmp
+    patterns: '*-cr.yml'
+  register: cr_files
+
+- name: Create cluster roles
+  command: kubectl apply -f {{ item.path }}
+  loop: "{{ cr_files.files }}"
+
+- name: Remove tmp dir
+  file:
+    path: tmp
+    state: absent
+
