@@ -1,0 +1,47 @@
+---
+
+- name: Download MongoDB Database Tools package
+  ansible.builtin.get_url:
+    url: https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.9.4.tgz
+    dest: "/tmp/mongodb-database-tools-ubuntu2204-x86_64-100.9.4.tgz"
+
+- name: Extract MongoDB Database Tools package
+  ansible.builtin.unarchive:
+    src: "/tmp/mongodb-database-tools-ubuntu2204-x86_64-100.9.4.tgz"
+    dest: "/usr/local"
+    remote_src: yes
+    extra_opts: [--strip-components=1]
+
+- name: Ensure MongoDB Database Tools are executable
+  ansible.builtin.file:
+    path: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+  loop:
+    - mongodump
+    - mongorestore
+    - mongoimport
+    - mongoexport
+
+- name: Create dockerfile directory`
+  file:
+    path: /data/dockerfiles
+    state: directory
+
+- name: Create db directories
+  file:
+    path: /data/dbs/{{ item }}
+    state: directory
+  loop: "{{ db_directories }}"
+
+- name: Copy docker-compose to host
+  copy:
+    src: docker/docker-compose.yaml
+    dest: /data/dockerfiles/docker-compose.yaml
+
+- name: Clean docker containers
+  shell: |
+        docker stop $(docker ps -aq)
+        docker rm $(docker ps -aq)
+
+- name: Run docker-compose up
+  command: docker-compose -f /data/dockerfiles/docker-compose.yaml up -d

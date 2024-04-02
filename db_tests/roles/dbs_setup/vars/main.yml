@@ -1,0 +1,1 @@
+db_directories: [mongodb, mariadb]
